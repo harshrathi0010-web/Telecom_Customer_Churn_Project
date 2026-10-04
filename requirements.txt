@@ -1,0 +1,15 @@
+numpy
+pandas 
+seaborn 
+matplotlib
+scikit-learn
+ipykernel
+openpyxl
+pydantic
+mlflow
+joblib
+python-dotenv
+pytest
+uvicorn
+fastapi
+great-expectations
