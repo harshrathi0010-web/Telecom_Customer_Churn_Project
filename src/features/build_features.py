@@ -72,9 +72,9 @@ def build_features(df:pd.DataFrame,target_col:str="Churn") -> pd.DataFrame:
 
   # Step 3- > apply binary coding
   # convert 2- category feature to 0/1 using deterministic mapping.
-  for c in binary_cols:
+ for c in binary_cols:
     original_dtype=df[c].dtype
-    df[c]=_map_binary_series(df[c].astype(str))
+    df[c]=_map_binary_series(df[c])
     print(f" {c}:{original_dtype} -> binary (0/1)")
 
 
