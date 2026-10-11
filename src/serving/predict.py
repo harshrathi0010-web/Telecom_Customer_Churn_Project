@@ -1,4 +1,4 @@
-#
+from functools import lru_cache
 from pathlib import Path
 
 import joblib
@@ -6,58 +6,64 @@ import pandas as pd
 
 from src.data.preprocess_data import preprocess_data
 
-PROJECT_ROOT=Path(__file__).resolve().parents[2]
-MODEL_PATH=PROJECT_ROOT/"artifacts"/"churn_pipeline.joblib"
-INPUT_PATH=PROJECT_ROOT/"data"/"raw"/"new_customers.csv"
-OUTPUT_PATH=PROJECT_ROOT/"data"/"processed"/"churn_predictions.csv"
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+MODEL_PATH = PROJECT_ROOT / "artifacts" / "churn_pipeline.joblib"
 
 
-def main() -> None:
-    model=joblib.load(MODEL_PATH)
-    raw_df=pd.read_csv(INPUT_PATH)
-    raw_df.columns=raw_df.columns.str.strip()
+@lru_cache(maxsize=1)
+def load_model():
+    """Load the saved model once and reuse it."""
+    if not MODEL_PATH.exists():
+        raise FileNotFoundError(f"Trained model not found: {MODEL_PATH}")
 
-    # Keep customer I for the results , preprocessing remove from their feature.
-    id_columns=["customerid","CustomerID","customer_id","Customer_ID"]
-    id_column=next((col for col in id_columns if col in raw_df.columns),None)
+    return joblib.load(MODEL_PATH)
 
-    if id_column:
-        customer_ids=raw_df[id_column].copy()
-    else:
-        customer_ids=pd.Series(range(1,len(raw_df)+1),name="row_number")
 
-    # New Customer have no customer churn value
-    features=preprocess_data(raw_df,require_target=False)
-    features=features.drop(columns=["Churn"],errors="ignore")
+def predict_customer(customer_data: dict) -> dict:
+    """Predict churn for one customer's details."""
 
-    # use the same features columns as and during the training.
-    expected_columns=list(model.feature_names_in_)
-    missing_columns=[col for col in expected_columns if col not in features.columns]
+    # Turn the customer's form details into a one-row DataFrame.
+    raw_df = pd.DataFrame([customer_data])
+    raw_df.columns = raw_df.columns.str.strip()
+
+    # The user is asking us to predict Churn, so don't accept it as an input.
+    raw_df = raw_df.drop(columns=["Churn"], errors="ignore")
+
+    # Convert form values for numeric fields to numbers.
+    numeric_fields = [
+        "SeniorCitizen",
+        "tenure",
+        "MonthlyCharges",
+        "TotalCharges",
+    ]
+    for column in numeric_fields:
+        if column in raw_df.columns:
+            raw_df[column] = pd.to_numeric(raw_df[column], errors="coerce")
+
+    # Clean the inputs using the same cleaning function as training.
+    features = preprocess_data(raw_df, require_target=False)
+
+    model = load_model()
+
+    # Ensure the form supplied every feature the model was trained to use.
+    expected_columns = list(model.feature_names_in_)
+    missing_columns = [
+        column for column in expected_columns if column not in features.columns
+    ]
 
     if missing_columns:
-        raise ValueError(f" new customer data is missing:{missing_columns}")
-    features=features.reindex(columns=expected_columns)
+        raise ValueError(f"Customer details are missing fields: {missing_columns}")
 
-    predictions=model.predict(features)
-    probabilities=model.predict_proba(features)[:,1]
+    # Put columns in the same order the model saw during training.
+    features = features.reindex(columns=expected_columns)
 
-    results=pd.DataFrame(
-        {
-            "CustomerID": customer_ids,
-            "Predicted_Churn": pd.Series(predictions).map({0: "No", 1: "Yes"}),
-            "Churn_Probability": probabilities.round(3),
-        }
-    )
+    # Predict the label and estimated churn probability.
+    prediction = int(model.predict(features)[0])
+    probability = float(model.predict_proba(features)[0, 1])
 
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    results.to_csv(OUTPUT_PATH, index=False)
-
-    print(f"Predictions saved to: {OUTPUT_PATH}")
-    print(results.head())
-
-
-if __name__ == "__main__":
-    main()
-    
-
-
+    return {
+        "prediction": "Yes" if prediction == 1 else "No",
+        "message": "Likely to churn" if prediction == 1 else "Not likely to churn",
+        "churn_probability": round(probability, 3),
+    }
