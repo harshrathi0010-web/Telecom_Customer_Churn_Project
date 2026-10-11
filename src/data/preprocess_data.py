@@ -1,7 +1,7 @@
 # 
 import pandas as pd
 
-def preprocess_data(df:pd.DataFrame,target_col:str="Churn") -> pd.DataFrame:
+def preprocess_data(df:pd.DataFrame,target_col:str="Churn",require_target:bool=True,) -> pd.DataFrame:
 
     # Basic cleaning for the telecom churn
     # simple NA or data handling
@@ -22,16 +22,18 @@ def preprocess_data(df:pd.DataFrame,target_col:str="Churn") -> pd.DataFrame:
 
 
     if target_col not in df.columns:
-        raise ValueError(f"Required target column '{target_col}' is missing.")
+        if require_target:
+            raise ValueError(f"Required target column '{target_col}' is missing.")
 
-    if not pd.api.types.is_numeric_dtype(df[target_col]):
-        labels = df[target_col].astype("string").str.strip()
-        df[target_col] = labels.map({"No": 0, "Yes": 1})
+    else: 
+        if not pd.api.types.is_numeric_dtype(df[target_col]):
+            labels = df[target_col].astype("string").str.strip()
+            df[target_col] = labels.map({"No": 0, "Yes": 1})
 
-    if df[target_col].isna().any():
-        raise ValueError(f"{target_col} has missing or unexpected values.")
+        if df[target_col].isna().any():
+            raise ValueError(f"{target_col} has missing or unexpected values.")
 
-    df[target_col] = df[target_col].astype(int)   
+        df[target_col] = df[target_col].astype(int)   
 
     # change the data type of TotalCharges into numeric
     if "TotalCharges" in df.columns:
