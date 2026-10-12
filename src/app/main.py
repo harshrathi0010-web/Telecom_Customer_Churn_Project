@@ -5,11 +5,20 @@ from pydantic import BaseModel,Field
 
 from src.serving.predict import predict_customer
 
+from pathlib import Path
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+STATIC_DIR=Path(__file__).parent / "static"
 app=FastAPI(
+    
+
     title="Telecom  Customer Churn Prediction",
     description="Predict whether the customer wil churn or not",
     version="1.0.0"
 )
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR),name="static")
 
 # FASTAPI (pydantic) check whether customer details have valid types and value.
 
@@ -44,9 +53,9 @@ class CustomerData(BaseModel):
     TotalCharges: float = Field(ge=0)
 
 
-@app.get('/')
-def home() -> dict[str, str]:
-    return {"message": "Telecom Churn Prediction API is running"}
+@app.get('/',include_in_schema=False)
+def home():
+    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get('/health')
