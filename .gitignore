@@ -1,2 +1,11 @@
 venv/
 new_customers.csv
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.git/
+.vscode/
+data/
+notebook/
+mlruns/
