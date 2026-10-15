@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+# 
+>>>>>>> 7108a8321358356210cdf1f0b0b713fb9d1f1df7
 # Telecom Customer Churn Prediction
 
 This project predicts whether a telecom customer may churn using a **Logistic Regression** model. It includes a data and training pipeline, a FastAPI service, and a simple web form.
